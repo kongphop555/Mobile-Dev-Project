@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePockets } from '../context/PocketContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AccountScreen({ navigation }) {
   const [activeCategory, setActiveCategory] = useState('saving');
@@ -71,6 +72,27 @@ export default function AccountScreen({ navigation }) {
 
   const pockets = getPocketsByCategory(activeCategory);
 
+  const handlePocketPress = (pocket) => {
+    if (!pocket || !pocket.id) {
+      console.error('Invalid pocket data:', pocket);
+      return;
+    }
+    
+    navigation.navigate('PocketDetails', {
+      pocketId: pocket.id,
+      name: pocket.name // Add name for better UX
+    });
+  };
+
+  const debugStorage = async () => {
+    const storedPockets = await AsyncStorage.getItem('@pockets');
+    console.log('Stored pockets:', JSON.parse(storedPockets));
+  };
+
+  useEffect(() => {
+    debugStorage();
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -82,7 +104,7 @@ export default function AccountScreen({ navigation }) {
       <FlatList
         data={pockets}
         renderItem={({ item }) => (
-          <PocketCard pocket={item} onPress={() => navigation.navigate('PocketDetails', { pocket: item })} />
+          <PocketCard pocket={item} onPress={handlePocketPress} />
         )}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.pocketsList}

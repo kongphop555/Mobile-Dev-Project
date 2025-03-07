@@ -3,48 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePockets } from '../context/PocketContext';
 
-// Sample ads data
-const ads = [
-  {
-    id: '1',
-    image: 'https://www.coca-cola.com/content/dam/onexp/th/th/brand-coca-cola/Coke_Sharing_Banner.jpg',
-    title: 'Share a Coke',
-    description: 'Buy 1 Get 1 Free at 7-Eleven',
-  },
-  {
-    id: '2',
-    image: 'https://media.licdn.com/dms/image/D5612AQETm1YyJyXVlw/article-cover_image-shrink_720_1280/0/1699840943352?e=2147483647&v=beta&t=8UUk8_VKvkqR_NKZ4yaYYNx8yKqHFCxEj-6lUyIQTzM',
-    title: 'McDonald\'s Deal',
-    description: '20% off on Big Mac Meal',
-  },
-  {
-    id: '3',
-    image: 'https://www.marketing-interactive.com/images/sg/content-images/Grab%20pay%20later.jpg',
-    title: 'GrabPay Offer',
-    description: 'Get ฿100 cashback on first payment',
-  },
-];
-
-// Sample bills data
-const bills = [
-  {
-    id: '1',
-    title: 'Investment',
-    subtitle: 'in 3 days',
-  },
-  {
-    id: '2',
-    title: 'electronics mom\'s',
-    subtitle: 'home',
-    days: 'in 7 days',
-  },
-  {
-    id: '3',
-    title: 'Utilities',
-    subtitle: 'in 10 days',
-  },
-];
-
 // Sample promotions
 const promotions = [
   {
@@ -154,23 +112,18 @@ export default function DashboardScreen({ navigation }) {
             style={styles.billsScrollView}
           >
             {billsData.map((bill) => (
-              <TouchableOpacity
-                key={bill.id}
-                style={styles.billCard}
-                onPress={() => navigation.navigate('Account', { 
-                  screen: 'Account',
-                  params: { initialCategory: 'bills' }
-                })}
-              >
+              <View key={bill.id} style={styles.billCard}>
                 <Text style={styles.billName}>{bill.name}</Text>
                 <Text style={styles.billDueDate}>in {bill.dueDate} days</Text>
                 <TouchableOpacity 
                   style={styles.payButton}
-                  onPress={() => navigation.navigate('PocketDetails', { pocket: bill })}
+                  onPress={() => navigation.navigate('PocketDetails', { 
+                    pocketId: bill.id 
+                  })}
                 >
                   <Text style={styles.payButtonText}>pay</Text>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </View>
             ))}
           </ScrollView>
         </View>
@@ -205,95 +158,116 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
-    padding: 16,
-    paddingLeft: 20,
+    padding: 20,
+    paddingLeft: 24,
     backgroundColor: '#fff',
     alignItems: 'flex-start',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   headerText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#000',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
+    padding: 20,
   },
   balanceCard: {
     backgroundColor: '#8A2BE2',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 32,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   balanceLabel: {
-    fontSize: 16,
+    fontSize: 18,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   balanceAmount: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#fff',
   },
   billsSection: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingHorizontal: 4,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#000',
   },
   viewAllText: {
     color: '#8A2BE2',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   billsScrollView: {
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
   },
   billCard: {
     backgroundColor: '#8A2BE2',
-    borderRadius: 15,
-    padding: 16,
-    marginRight: 12,
-    width: 150,
+    borderRadius: 20,
+    padding: 20,
+    marginRight: 16,
+    width: 180,
+    height: 160,
+    justifyContent: 'space-between',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   billName: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   billDueDate: {
-    fontSize: 12,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   payButton: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingVertical: 8,
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     alignItems: 'center',
+    alignSelf: 'stretch',
   },
   payButtonText: {
     color: '#8A2BE2',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
+  },
+  suggestSection: {
+    marginBottom: 24,
   },
   promotionsContainer: {
     paddingRight: 16,
-  },
-  suggestSection: {
-    marginBottom: 16, // Reduced bottom margin
   },
   promotionsWrapper: {
     backgroundColor: '#fff',

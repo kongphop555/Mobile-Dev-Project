@@ -9,58 +9,130 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  ScrollView,
+  Switch,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePockets } from '../context/PocketContext';
+import { Ionicons } from '@expo/vector-icons';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 
 export default function AddTransaction({ route, navigation }) {
-  const { pocketId, category } = route.params;
+  const { pocketId, category, onTransactionAdded } = route.params;
+  const { addTransaction, refreshPockets } = usePockets();
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringPeriod, setRecurringPeriod] = useState('monthly');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [tags, setTags] = useState([]);
   const [type, setType] = useState('expense');
   const [loading, setLoading] = useState(false);
-  const { addTransaction } = usePockets();
 
   const handleAddTransaction = async () => {
-    if (!amount) {
-      Alert.alert('Error', 'Please enter an amount');
+    if (!amount || !description) {
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
-
-    setLoading(true);
     try {
-      const success = await addTransaction(pocketId, {
-        amount: numericAmount,
-        description: description.trim(),
+      setLoading(true);
+      await addTransaction(pocketId, {
         type,
+        amount: parseFloat(amount),
+        description,
+        date: new Date().toISOString(),
       });
 
-      if (success) {
-        Alert.alert(
-          'Success',
-          'Transaction added successfully!',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
+      await refreshPockets();
+
+      if (onTransactionAdded) {
+        onTransactionAdded();
       }
+
+      navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Failed to add transaction');
+      Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const renderDatePicker = () => {
+    const today = new Date();
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date();
+      date.setDate(today.getDate() - i);
+      dates.push(date);
+    }
+
+    return (
+      <Modal
+        visible={showDateModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Date</Text>
+            <ScrollView>
+              {dates.map((date) => (
+                <TouchableOpacity
+                  key={date.toISOString()}
+                  style={[
+                    styles.dateOption,
+                    date.toDateString() === selectedDate.toDateString() && styles.selectedDate
+                  ]}
+                  onPress={() => {
+                    setSelectedDate(date);
+                    setShowDateModal(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.dateText,
+                    date.toDateString() === selectedDate.toDateString() && styles.selectedDateText
+                  ]}>
+                    {date.toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowDateModal(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.content}
-      >
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Icon name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Add Transaction</Text>
+        <View style={styles.rightPlaceholder} />
+      </View>
+
+      <ScrollView style={styles.content}>
         <View style={styles.typeSelector}>
           <TouchableOpacity
             style={[styles.typeButton, type === 'expense' && styles.activeTypeButton]}
@@ -109,6 +181,40 @@ export default function AddTransaction({ route, navigation }) {
         </View>
 
         <TouchableOpacity
+          style={styles.dateButton}
+          onPress={() => setShowDateModal(true)}
+        >
+          <Text style={styles.dateButtonText}>
+            Date: {selectedDate.toLocaleDateString()}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.recurringContainer}>
+          <Text>Recurring Transaction</Text>
+          <Switch
+            value={isRecurring}
+            onValueChange={setIsRecurring}
+          />
+        </View>
+
+        {isRecurring && (
+          <View style={styles.periodSelector}>
+            {['weekly', 'monthly', 'yearly'].map(period => (
+              <TouchableOpacity
+                key={period}
+                style={[
+                  styles.periodButton,
+                  recurringPeriod === period && styles.selectedPeriod
+                ]}
+                onPress={() => setRecurringPeriod(period)}
+              >
+                <Text>{period.charAt(0).toUpperCase() + period.slice(1)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <TouchableOpacity
           style={[styles.addButton, !amount && styles.addButtonDisabled]}
           onPress={handleAddTransaction}
           disabled={!amount || loading}
@@ -119,7 +225,9 @@ export default function AddTransaction({ route, navigation }) {
             <Text style={styles.addButtonText}>Add Transaction</Text>
           )}
         </TouchableOpacity>
-      </KeyboardAvoidingView>
+      </ScrollView>
+
+      {renderDatePicker()}
     </SafeAreaView>
   );
 }
@@ -128,6 +236,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  rightPlaceholder: {
+    width: 40,
   },
   content: {
     flex: 1,
@@ -205,5 +333,81 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  dateButton: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  recurringContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  periodSelector: {
+    flexDirection: 'row',
+    marginBottom: 24,
+  },
+  periodButton: {
+    flex: 1,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#8A2BE2',
+    borderRadius: 8,
+  },
+  selectedPeriod: {
+    backgroundColor: '#8A2BE2',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  dateOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  selectedDate: {
+    backgroundColor: '#8A2BE2',
+    borderRadius: 8,
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectedDateText: {
+    color: '#fff',
+  },
+  closeButton: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
   },
 }); 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,63 +7,71 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  TouchableOpacity
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  TouchableWithoutFeedback
 } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase/firebaseConfig';
-import CustomButton from '../components/CustomButton';
 import { useUser } from '../context/UserContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CommonActions } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AuthScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const { setUser } = useUser();
 
-  const validateInputs = () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return false;
-    }
-    if (!email.includes('@')) {
-      Alert.alert('Error', 'Please enter a valid email');
-      return false;
-    }
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return false;
-    }
-    return true;
-  };
-
   const handleAuth = async () => {
-    if (!validateInputs()) return;
+    if (!email || !password) {
+      setErrorMessage('Please fill in all fields');
+      setShowError(true);
+      return;
+    }
+
+    if (!email.includes('@')) {
+      setErrorMessage('Please enter a valid email');
+      setShowError(true);
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters');
+      setShowError(true);
+      return;
+    }
     
     setLoading(true);
     try {
-      // Simulate authentication
+      let userCredential;
+      
+      if (isLogin) {
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      }
+
       const userData = {
-        email,
-        id: 'user-123',
-        // Add any other user data you want to store
+        email: userCredential.user.email,
+        id: userCredential.user.uid,
       };
 
-      // Set the user in context
       setUser(userData);
-
-      // Navigate to main app
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'MainApp' }],
-        })
-      );
+      navigation.replace('MainTabs');
     } catch (error) {
-      Alert.alert('Authentication Error', 'Failed to authenticate');
+      let message = 'Invalid email or password';
+      if (error.code === 'auth/user-not-found') {
+        message = 'No account found with this email';
+      } else if (error.code === 'auth/wrong-password') {
+        message = 'Incorrect password';
+      }
+      setErrorMessage(message);
+      setShowError(true);
     } finally {
       setLoading(false);
     }
@@ -101,18 +109,25 @@ export default function AuthScreen({ navigation }) {
         />
 
         <TouchableOpacity 
-          style={styles.authButton}
+          style={[styles.authButton, loading && styles.authButtonDisabled]}
           onPress={handleAuth}
           disabled={loading}
         >
-          <Text style={styles.authButtonText}>
-            {isLogin ? 'Login' : 'Sign Up'}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.authButtonText}>
+              {isLogin ? 'Login' : 'Sign Up'}
+            </Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.switchButton}
-          onPress={() => setIsLogin(!isLogin)}
+          onPress={() => {
+            setIsLogin(!isLogin);
+            setShowError(false);
+          }}
           disabled={loading}
         >
           <Text style={styles.switchButtonText}>
@@ -120,6 +135,30 @@ export default function AuthScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showError}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowError(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowError(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Error</Text>
+                <Text style={styles.modalText}>{errorMessage}</Text>
+                <TouchableOpacity 
+                  style={styles.modalButton}
+                  onPress={() => setShowError(false)}
+                >
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -155,6 +194,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
+  authButtonDisabled: {
+    backgroundColor: '#D1D1D1',
+  },
   authButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -167,5 +209,39 @@ const styles = StyleSheet.create({
   switchButtonText: {
     color: '#8A2BE2',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: '#8A2BE2',
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

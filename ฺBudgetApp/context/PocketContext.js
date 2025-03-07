@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
@@ -9,11 +9,7 @@ export function PocketProvider({ children }) {
   const [pockets, setPockets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load pockets from AsyncStorage on mount
-  useEffect(() => {
-    loadPockets();
-  }, []);
-
+  // Function to load pockets from storage
   const loadPockets = async () => {
     try {
       const storedPockets = await AsyncStorage.getItem(STORAGE_KEY);
@@ -27,6 +23,25 @@ export function PocketProvider({ children }) {
       setLoading(false);
     }
   };
+
+  // Function to refresh pockets data
+  const refreshPockets = useCallback(async () => {
+    try {
+      setLoading(true);
+      await loadPockets();
+      return true;
+    } catch (error) {
+      console.error('Error refreshing pockets:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadPockets();
+  }, []);
 
   // Save pockets to AsyncStorage whenever they change
   const savePockets = async (newPockets) => {
@@ -89,41 +104,45 @@ export function PocketProvider({ children }) {
 
   const addTransaction = async (pocketId, transaction) => {
     try {
-      const pocket = pockets.find(p => p.id === pocketId);
-      if (!pocket) throw new Error('Pocket not found');
+      const updatedPockets = pockets.map(pocket => {
+        if (pocket.id === pocketId) {
+          // Ensure currentAmount exists and is a number
+          const currentAmount = typeof pocket.currentAmount === 'number' ? pocket.currentAmount : 0;
+          const transactionAmount = Number(transaction.amount);
 
-      const newAmount = transaction.type === 'income' 
-        ? pocket.currentAmount + transaction.amount
-        : pocket.currentAmount - transaction.amount;
+          const newAmount = transaction.type === 'income' 
+            ? currentAmount + transactionAmount
+            : currentAmount - transactionAmount;
 
-      // Validate based on category
-      if (pocket.category === 'saving') {
-        if (newAmount < 0) {
-          Alert.alert('Error', 'Insufficient funds in saving pocket');
-          return false;
+          return {
+            ...pocket,
+            transactions: [...(pocket.transactions || []), {
+              ...transaction,
+              id: Date.now().toString(), // Add unique ID for each transaction
+              date: new Date().toISOString(),
+            }],
+            currentAmount: newAmount
+          };
         }
-      } else if (pocket.category === 'expense') {
-        if (newAmount < 0) {
-          Alert.alert('Error', 'Budget exceeded');
-          return false;
-        }
-      }
+        return pocket;
+      });
 
-      const updatedPocket = {
-        ...pocket,
-        currentAmount: newAmount,
-        transactions: [
-          ...pocket.transactions,
-          { ...transaction, id: Date.now().toString(), date: new Date().toISOString() }
-        ]
-      };
-
-      await updatePocket(pocketId, updatedPocket);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPockets));
+      setPockets(updatedPockets);
       return true;
     } catch (error) {
       console.error('Error adding transaction:', error);
-      Alert.alert('Error', 'Failed to add transaction');
-      return false;
+      throw new Error('Failed to add transaction');
+    }
+  };
+
+  const getPocket = async (pocketId) => {
+    try {
+      const pocket = pockets.find(p => p.id === pocketId);
+      return pocket || null;
+    } catch (error) {
+      console.error('Error getting pocket:', error);
+      return null;
     }
   };
 
@@ -165,12 +184,15 @@ export function PocketProvider({ children }) {
   return (
     <PocketContext.Provider value={{
       pockets,
+      setPockets,
       loading,
+      refreshPockets,
       addPocket,
       updatePocket,
       deletePocket,
       getPocketsByCategory,
       addTransaction,
+      getPocket,
       checkBillsDue,
     }}>
       {children}

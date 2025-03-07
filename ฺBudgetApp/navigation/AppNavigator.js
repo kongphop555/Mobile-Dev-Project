@@ -3,19 +3,20 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-// Import screens
+// Import your screens
 import AuthScreen from '../screens/AuthScreen';
-import DashboardScreen from '../screens/DashboardScreen';
-import AccountScreen from '../screens/AccountScreen';
-import AnalysisScreen from '../screens/AnalysisScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import CreatePocketScreen from '../screens/CreatePocketScreen';
-import PocketDetailsScreen from '../screens/PocketDetails';
+import DashboardScreen from '../screens/DashboardScreen.js';
+import AccountScreen from '../screens/AccountScreen.js';
+import AnalysisScreen from '../screens/AnalysisScreen.js';
+import ProfileScreen from '../screens/ProfileScreen.js';
+import PocketDetailsScreen from '../screens/PocketDetails.js';
+import CreatePocketScreen from '../screens/CreatePocketScreen.js';
+import AddTransactionScreen from '../screens/AddTransaction.js';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Bottom Tab Navigator
+// Main tab navigator
 function TabNavigator() {
   return (
     <Tab.Navigator
@@ -23,14 +24,19 @@ function TabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
-          if (route.name === 'Dashboard') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Account') {
-            iconName = focused ? 'wallet' : 'wallet-outline';
-          } else if (route.name === 'Analysis') {
-            iconName = focused ? 'bar-chart' : 'bar-chart-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
+          switch (route.name) {
+            case 'Dashboard':
+              iconName = focused ? 'home' : 'home-outline';
+              break;
+            case 'Account':
+              iconName = focused ? 'wallet' : 'wallet-outline';
+              break;
+            case 'Analysis':
+              iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+              break;
+            case 'Profile':
+              iconName = focused ? 'person' : 'person-outline';
+              break;
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -48,23 +54,41 @@ function TabNavigator() {
   );
 }
 
-// Main Stack Navigator
-function MainStackNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs" component={TabNavigator} />
-      <Stack.Screen name="CreatePocket" component={CreatePocketScreen} />
-      <Stack.Screen name="PocketDetails" component={PocketDetailsScreen} />
-    </Stack.Navigator>
-  );
-}
-
-// Root Navigator
+// Main stack navigator
 export default function AppNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+      initialRouteName="Auth"
+    >
       <Stack.Screen name="Auth" component={AuthScreen} />
-      <Stack.Screen name="MainApp" component={MainStackNavigator} />
+      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen 
+        name="PocketDetails" 
+        component={PocketDetailsScreen}
+        options={{
+          presentation: 'card',
+          animationEnabled: true,
+        }}
+      />
+      <Stack.Screen 
+        name="CreatePocket" 
+        component={CreatePocketScreen}
+        options={{
+          presentation: 'modal',
+          animationEnabled: true,
+        }}
+      />
+      <Stack.Screen 
+        name="AddTransaction" 
+        component={AddTransactionScreen}
+        options={{
+          presentation: 'modal',
+          animationEnabled: true,
+        }}
+      />
     </Stack.Navigator>
   );
 }
