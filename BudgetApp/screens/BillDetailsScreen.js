@@ -14,6 +14,8 @@ export default function BillDetailsScreen({ route, navigation }) {
   const { pocketId } = route.params;
   const { pockets, handlePayment } = usePockets();
   const bill = pockets.find(p => p.id === pocketId);
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [eligiblePockets, setEligiblePockets] = useState([]);
 
   if (!bill) {
     return (
@@ -23,27 +25,44 @@ export default function BillDetailsScreen({ route, navigation }) {
     );
   }
 
-  const handlePayBill = () => {
-    Alert.alert(
-      'Confirm Payment',
-      `Are you sure you want to pay this bill now? You still have ${bill.daysUntilDue} days before the deadline.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Pay Now',
-          onPress: () => {
-            handlePayment(bill.id);
-            Alert.alert('Success', 'Bill has been paid successfully!',
-              [{ text: 'OK', onPress: () => navigation.goBack() }]
-            );
-          }
-        }
-      ]
+  const findEligiblePockets = () => {
+    return pockets.filter(p => 
+      p.category === 'expense' &&
+      p.currentAmount >= bill.goal &&
+      p.id !== bill.id
     );
   };
+
+  const handlePayBill = () => {
+    const available = findEligiblePockets();
+    if (available.length === 0) {
+      Alert.alert('Error', 'No eligible pockets with sufficient funds');
+      return;
+    }
+    setEligiblePockets(available);
+    setShowSourcePicker(true);
+  };
+
+  const renderSourcePicker = () => (
+    <Modal visible={showSourcePicker} transparent>
+      <View style={styles.modal}>
+        <Text>Select payment source:</Text>
+        {eligiblePockets.map(p => (
+          <TouchableOpacity
+            key={p.id}
+            onPress={() => {
+              handlePayment(bill.id, p.id);
+              setShowSourcePicker(false);
+            }}
+          >
+            <Text>{p.name} (฿{p.currentAmount})</Text>
+          </TouchableOpacity>
+        ))}
+        <Button title="Cancel" onPress={() => setShowSourcePicker(false)} />
+      </View>
+    </Modal>
+  );
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -91,6 +110,7 @@ export default function BillDetailsScreen({ route, navigation }) {
           </View>
         </View>
       </View>
+      {renderSourcePicker()}
     </SafeAreaView>
   );
 }
