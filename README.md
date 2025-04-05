@@ -14,3 +14,19 @@ AddAccountScreen:
 - change initial balance to be goal balance
 - add condition if choose savings type will show Goal Balance to add, but if choose general type won't show the Goal to add.
 - add name's suggestion for create pockets.
+
+from BudgetApp(W.4) --> BudgetApp(W.5)
+AccountScreen:
+- change 2blocks above to show total balance of General&Savings Account
+- change filter 2 types (General, Savings)
+- redesign main detail is account that created
+
+TransactionDetailScreen:
+- remove payment method, location
+
+ProfileScreen:
+- remove Stats Cards
+- remove payment method menu
+
+EditProfileScreen:
+- remove phone, location
